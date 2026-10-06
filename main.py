@@ -6,33 +6,36 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import CommandStart, Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
-# ==================== SOZLAMALAR ====================
+# ==================== 1. BOT VA SOZLAMALAR ====================
 BOT_TOKEN = "8770001356:AAFzObBGaC_gHoEVY0AA1wUYR0Xtv6TrosM"
-CHANNEL_USERNAME = "@ochiqkanalim"  # Majburiy obuna kanali
-ADMIN_ID = 8286159397  # O'zingizning Telegram ID raqamingiz
+ADMIN_ID = 8286159397  # Sizning Telegram ID-ingiz
 
-# FOYDALANUVCHILAR BAZASI
-VIP_USERS = set()  # VIP foydalanuvchilar ID-lari
+# ==================== 2. MAJBURIY OBUNA KANALLARI ====================
+# Bu yerga kanallaringiz usernamesini yozasiz (bot bu kanallarda ADMIN bo'lishi shart!)
+CHANNELS = [
+    "@ochiqkanalim",   # 1-kanal
+    "@ikkinchikanal"   # 2-kanal
+]
 
-# KINOLAR BAZASI
+# VIP foydalanuvchilar ro'yxati
+VIP_USERS = set()
+
+# ==================== 3. KINOLAR BAZASI ====================
+# KINO BAZASIGA KINOLARNI SHU YERGA QO'SHASIZ:
+# file_id - kinongiz saqlangan kanaldan olingan xabar (video) ID-si.
 MOVIES_DB = {
-    # 1. BEPUL KINO
     "101": {
         "type": "single",
         "title": "Forsaj 10 (Bepul)",
         "is_premium": False,
         "file_id": "AAMCAgADGQEAAS92s2rEnmt3CRZDurj34JuXHSl99T0CAAKnogACovUhSjFsOIJjmAv8AQAHbQADPQQ"
     },
-    
-    # 2. PULLI / PREMIUM KINO
     "102": {
         "type": "single",
         "title": "Avatar 2 (VIP Premium)",
         "is_premium": True,
         "file_id": "AAMCAgADGQEAAS92s2rEnmt3CRZDurj34JuXHSl99T0CAAKnogACovUhSjFsOIJjmAv8AQAHbQADPQQ"
     },
-    
-    # 3. SERIAL
     "664": {
         "type": "serial",
         "title": "Merlin",
@@ -43,28 +46,45 @@ MOVIES_DB = {
         }
     }
 }
-# ====================================================
 
-# Default HTML yoki Markdown beramiz
+# Bot obyektini yaratish
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# Majburiy obunani tekshirish funksiyasi
-async def check_sub(user_id: int) -> bool:
-    try:
-        member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        return member.status in ["creator", "administrator", "member"]
-    except Exception as e:
-        logging.error(f"Obunani tekshirishda xatolik: {e}")
-        return False
+# ==================== 4. YORDAMCHI FUNKSIYALAR ====================
 
-# Obuna klaviaturasi
+# Barcha kanallarga obunani tekshirish funksiyasi
+async def check_all_subs(user_id: int) -> bool:
+    for channel in CHANNELS:
+        # Sukut bo'yicha namunaviy kanallar bo'lsa tekshirmaydi
+        if channel in ["@ochiqkanalim", "@ikkinchikanal"]:
+            continue
+        try:
+            member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
+            if member.status not in ["creator", "administrator", "member"]:
+                return False
+        except Exception as e:
+            logging.error(f"Kanalni tekshirishda xatolik ({channel}): {e}")
+            return False
+    return True
+
+# Obuna tugmalarini yaratish funksiyasi
 def get_sub_keyboard():
-    channel_link = CHANNEL_USERNAME.replace("@", "")
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📢 Kanalga obuna bo'lish", url=f"https://t.me/{channel_link}")],
-        [InlineKeyboardButton(text="✅ Obunani tekshirish", callback_data="check_subscription")]
+    buttons = []
+    for idx, channel in enumerate(CHANNELS, start=1):
+        clean_username = channel.replace("@", "")
+        buttons.append([
+            InlineKeyboardButton(text=f"📢 {idx}-Kanalga obuna bo'lish", url=f"https://t.me/{clean_username}")
+        ])
+    
+    # Obunani tekshirish tugmasi
+    buttons.append([
+        InlineKeyboardButton(text="✅ Obunani tekshirish", callback_data="check_subscription")
     ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# ==================== 5. BUYRUQLAR VA HANDLERLAR ====================
 
 # /start buyrug'i
 @dp.message(CommandStart())
@@ -73,13 +93,13 @@ async def start_handler(message: types.Message):
     status = "⭐ VIP Obunachi" if user_id in VIP_USERS else "👤 Oddiy foydalanuvchi"
     
     await message.answer(
-        f"Assalomu alaykum, {message.from_user.full_name}!\n\n"
+        f"Assalomu alaykum, *{message.from_user.full_name}*!\n\n"
         f"Sizning kodingiz (ID): `{user_id}`\n"
         f"Sizning maqomingiz: *{status}*\n\n"
-        "🎬 Kino ko'rish uchun *kino kodini* yuboring (masalan: 101, 102 yoki 664):"
+        "🎬 Kino ko'rish uchun *kino kodini* yuboring:"
     )
 
-# Admin uchun VIP berish: /vip 123456789
+# Admin uchun VIP berish: /vip 8286159397
 @dp.message(Command("vip"))
 async def make_vip(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -93,21 +113,21 @@ async def make_vip(message: types.Message):
         try:
             await bot.send_message(
                 target_id, 
-                "🎉 Sizga VIP status berildi! Endi barcha pulli kinolarni ko'rishingiz va majburiy obunasiz foydalanishingiz mumkin."
+                "🎉 Sizga VIP status berildi! Endi siz barcha kinolarni majburiy obunasiz va cheklovlarsiz ko'rishingiz mumkin."
             )
         except Exception:
             pass
     except Exception:
-        await message.answer("⚠️ Xato kiritdingiz! Buyruq shakli: `/vip 123456789`")
+        await message.answer("⚠️ Xato kiritdingiz! Buyruq shakli: `/vip 8286159397`")
 
-# Obunani tekshirish tugmasi
+# Obunani tekshirish tugmasi bosilganda
 @dp.callback_query(F.data == "check_subscription")
 async def check_sub_callback(call: CallbackQuery):
-    if await check_sub(call.from_user.id):
+    if await check_all_subs(call.from_user.id):
         await call.message.delete()
-        await call.message.answer("✅ Obunangiz tasdiqlandi. Endi kino kodini yuborishingiz mumkin.")
+        await call.message.answer("✅ Barcha kanallarga obunangiz tasdiqlandi! Endi kino kodini yuborishingiz mumkin.")
     else:
-        await call.answer("❌ Siz hali kanalimizga obuna bo'lmadingiz!", show_alert=True)
+        await call.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
 
 # Kino kodini qabul qilish
 @dp.message(F.text)
@@ -115,38 +135,37 @@ async def get_movie(message: types.Message):
     user_id = message.from_user.id
     code = message.text.strip()
 
+    # Noto'g'ri yoki yo'q kod kiritilsa bildirishnoma
     if code not in MOVIES_DB:
-        await message.answer("❌ Bunday kodli kino topilmadi. Kodni qayta tekshirib yuboring.")
+        await message.answer("❌ Bu kodda hali kino joylanmagan. Iltimos to'g'ri kodni kiriting.")
         return
 
     movie = MOVIES_DB[code]
     is_vip = user_id in VIP_USERS
 
-    # 1. PULLI KINO TEKSHIRUVI
+    # 1. VIP kino tekshiruvi
     if movie.get("is_premium") and not is_vip:
         await message.answer(
             f"🔒 *\"{movie['title']}\" kinosi faqat VIP obunachilar uchun!*\n\n"
-            "VIP obuna sotib olish uchun adminga muloqotga chiqing.\n"
             f"Sizning ID kodingiz: `{user_id}`\n\n"
-            "👨‍💻 Admin: @admin_username"
+            "VIP obuna sotib olish uchun adminga murojaat qiling."
         )
         return
 
-    # 2. MAJBURIY OBUNA TEKSHIRUVI
-    if not is_vip and not await check_sub(user_id):
+    # 2. Majburiy obuna tekshiruvi (VIP bo'lsa tekshirmaydi)
+    if not is_vip and not await check_all_subs(user_id):
         await message.answer(
-            "⚠️ Kinoni ko'rish uchun avval rasmiy kanalimizga obuna bo'ling:",
+            "⚠️ Kinoni ko'rish uchun avval ushbu kanallarga obuna bo'ling:",
             reply_markup=get_sub_keyboard()
         )
         return
 
-    # 3. KINONI YUBORISH
+    # 3. Kinoni yuborish
     if movie["type"] == "single":
         await message.answer_video(
             video=movie["file_id"],
             caption=f"🎬 *{movie['title']}*\n\nMaroqli hordiq chiqaring!"
         )
-        
     elif movie["type"] == "serial":
         buttons = []
         for ep_num in movie["episodes"].keys():
@@ -161,7 +180,7 @@ async def get_movie(message: types.Message):
             reply_markup=kb
         )
 
-# Serial qismi bosilganda
+# Serial qismlari bosilganda
 @dp.callback_query(F.data.startswith("ep_"))
 async def send_episode(call: CallbackQuery):
     _, code, ep_num = call.data.split("_")
@@ -176,6 +195,7 @@ async def send_episode(call: CallbackQuery):
             caption=f"🎬 *{title}* — {ep_num}-qism"
         )
 
+# Botni ishga tushirish
 async def main():
     logging.basicConfig(level=logging.INFO)
     await dp.start_polling(bot)
