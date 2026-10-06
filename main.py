@@ -11,18 +11,15 @@ BOT_TOKEN = "8770001356:AAFzObBGaC_gHoEVY0AA1wUYR0Xtv6TrosM"
 ADMIN_ID = 8286159397  # Sizning Telegram ID-ingiz
 
 # ==================== 2. MAJBURIY OBUNA KANALLARI ====================
-# Bu yerga kanallaringiz usernamesini yozasiz (bot bu kanallarda ADMIN bo'lishi shart!)
 CHANNELS = [
-    "@ochiqkanalim",   # 1-kanal
-    "@ikkinchikanal"   # 2-kanal
+    "@ochiqkanalim",
+    "@dddduzd"
 ]
 
 # VIP foydalanuvchilar ro'yxati
 VIP_USERS = set()
 
 # ==================== 3. KINOLAR BAZASI ====================
-# KINO BAZASIGA KINOLARNI SHU YERGA QO'SHASIZ:
-# file_id - kinongiz saqlangan kanaldan olingan xabar (video) ID-si.
 MOVIES_DB = {
     "101": {
         "type": "single",
@@ -47,18 +44,12 @@ MOVIES_DB = {
     }
 }
 
-# Bot obyektini yaratish
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
-
-# ==================== 4. YORDAMCHI FUNKSIYALAR ====================
 
 # Barcha kanallarga obunani tekshirish funksiyasi
 async def check_all_subs(user_id: int) -> bool:
     for channel in CHANNELS:
-        # Sukut bo'yicha namunaviy kanallar bo'lsa tekshirmaydi
-        if channel in ["@ochiqkanalim", "@ikkinchikanal"]:
-            continue
         try:
             member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
             if member.status not in ["creator", "administrator", "member"]:
@@ -77,14 +68,11 @@ def get_sub_keyboard():
             InlineKeyboardButton(text=f"📢 {idx}-Kanalga obuna bo'lish", url=f"https://t.me/{clean_username}")
         ])
     
-    # Obunani tekshirish tugmasi
     buttons.append([
         InlineKeyboardButton(text="✅ Obunani tekshirish", callback_data="check_subscription")
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-# ==================== 5. BUYRUQLAR VA HANDLERLAR ====================
 
 # /start buyrug'i
 @dp.message(CommandStart())
@@ -96,7 +84,7 @@ async def start_handler(message: types.Message):
         f"Assalomu alaykum, *{message.from_user.full_name}*!\n\n"
         f"Sizning kodingiz (ID): `{user_id}`\n"
         f"Sizning maqomingiz: *{status}*\n\n"
-        "🎬 Kino ko'rish uchun *kino kodini* yuboring:"
+        "🎬 Kino ko'rish uchun *kino kodini* yuboring (masalan: 101, 102 yoki 664):"
     )
 
 # Admin uchun VIP berish: /vip 8286159397
@@ -135,7 +123,7 @@ async def get_movie(message: types.Message):
     user_id = message.from_user.id
     code = message.text.strip()
 
-    # Noto'g'ri yoki yo'q kod kiritilsa bildirishnoma
+    # Noto'g'ri yoki yo'q kod kiritilsa xabar
     if code not in MOVIES_DB:
         await message.answer("❌ Bu kodda hali kino joylanmagan. Iltimos to'g'ri kodni kiriting.")
         return
