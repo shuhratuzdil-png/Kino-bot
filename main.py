@@ -16,7 +16,6 @@ CHANNELS = [
     "@dddduzd"
 ]
 
-# VIP foydalanuvchilar ro'yxati
 VIP_USERS = set()
 
 # ==================== 3. KINOLAR BAZASI ====================
@@ -47,19 +46,20 @@ MOVIES_DB = {
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# Barcha kanallarga obunani tekshirish funksiyasi
+# Barcha kanallarga obunani aniq tekshirish
 async def check_all_subs(user_id: int) -> bool:
     for channel in CHANNELS:
         try:
             member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
             if member.status not in ["creator", "administrator", "member"]:
+                logging.info(f"Foydalanuvchi {user_id} {channel} kanalida yo'q. Status: {member.status}")
                 return False
         except Exception as e:
-            logging.error(f"Kanalni tekshirishda xatolik ({channel}): {e}")
+            logging.error(f"Xatolik yuz berdi ({channel}): {e}")
             return False
     return True
 
-# Obuna tugmalarini yaratish funksiyasi
+# Obuna klaviaturasini yaratish
 def get_sub_keyboard():
     buttons = []
     for idx, channel in enumerate(CHANNELS, start=1):
@@ -87,7 +87,7 @@ async def start_handler(message: types.Message):
         "🎬 Kino ko'rish uchun *kino kodini* yuboring (masalan: 101, 102 yoki 664):"
     )
 
-# Admin uchun VIP berish: /vip 8286159397
+# Admin uchun VIP berish
 @dp.message(Command("vip"))
 async def make_vip(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -115,7 +115,7 @@ async def check_sub_callback(call: CallbackQuery):
         await call.message.delete()
         await call.message.answer("✅ Barcha kanallarga obunangiz tasdiqlandi! Endi kino kodini yuborishingiz mumkin.")
     else:
-        await call.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
+        await call.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz! Har ikkala kanalga ham a'zo bo'ling.", show_alert=True)
 
 # Kino kodini qabul qilish
 @dp.message(F.text)
@@ -123,7 +123,7 @@ async def get_movie(message: types.Message):
     user_id = message.from_user.id
     code = message.text.strip()
 
-    # Noto'g'ri yoki yo'q kod kiritilsa xabar
+    # Noto'g'ri kod kiritilganda
     if code not in MOVIES_DB:
         await message.answer("❌ Bu kodda hali kino joylanmagan. Iltimos to'g'ri kodni kiriting.")
         return
@@ -140,7 +140,7 @@ async def get_movie(message: types.Message):
         )
         return
 
-    # 2. Majburiy obuna tekshiruvi (VIP bo'lsa tekshirmaydi)
+    # 2. Majburiy obuna tekshiruvi (VIP foydalanuvchidan so'ralmaydi)
     if not is_vip and not await check_all_subs(user_id):
         await message.answer(
             "⚠️ Kinoni ko'rish uchun avval ushbu kanallarga obuna bo'ling:",
@@ -168,7 +168,7 @@ async def get_movie(message: types.Message):
             reply_markup=kb
         )
 
-# Serial qismlari bosilganda
+# Serial qismiga bosilganda
 @dp.callback_query(F.data.startswith("ep_"))
 async def send_episode(call: CallbackQuery):
     _, code, ep_num = call.data.split("_")
@@ -183,7 +183,6 @@ async def send_episode(call: CallbackQuery):
             caption=f"🎬 *{title}* — {ep_num}-qism"
         )
 
-# Botni ishga tushirish
 async def main():
     logging.basicConfig(level=logging.INFO)
     await dp.start_polling(bot)
