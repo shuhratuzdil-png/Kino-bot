@@ -1,40 +1,42 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import CommandStart, Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 # ==================== SOZLAMALAR ====================
-BOT_TOKEN = "AAFzObBGaC_gHoEVY0AA1wUYR0Xtv6TrosM"
+BOT_TOKEN = "8770001356:AAFzObBGaC_gHoEVY0AA1wUYR0Xtv6TrosM"
 CHANNEL_USERNAME = "@ochiqkanalim"  # Majburiy obuna kanali
-ADMIN_ID = 8286159397  # O'zingizning Telegram ID raqamingizni yozing
+ADMIN_ID = 8286159397  # O'zingizning Telegram ID raqamingiz
 
-# FOYDALANUVCHILAR BAZASI (VIP statuslarini saqlash uchun)
-VIP_USERS = set()  # VIP bo'lgan foydalanuvchilar Telegram ID-lari
+# FOYDALANUVCHILAR BAZASI
+VIP_USERS = set()  # VIP foydalanuvchilar ID-lari
 
 # KINOLAR BAZASI
 MOVIES_DB = {
-    # 1. BEPUL KINO (101 kodi)
+    # 1. BEPUL KINO
     "101": {
         "type": "single",
         "title": "Forsaj 10 (Bepul)",
-        "is_premium": False,  # Bepul kino
+        "is_premium": False,
         "file_id": "AAMCAgADGQEAAS92s2rEnmt3CRZDurj34JuXHSl99T0CAAKnogACovUhSjFsOIJjmAv8AQAHbQADPQQ"
     },
     
-    # 2. PULLI / PREMIUM KINO (102 kodi)
+    # 2. PULLI / PREMIUM KINO
     "102": {
         "type": "single",
         "title": "Avatar 2 (VIP Premium)",
-        "is_premium": True,   # Pulli kino
+        "is_premium": True,
         "file_id": "AAMCAgADGQEAAS92s2rEnmt3CRZDurj34JuXHSl99T0CAAKnogACovUhSjFsOIJjmAv8AQAHbQADPQQ"
     },
     
-    # 3. SERIAL (664 kodi)
+    # 3. SERIAL
     "664": {
         "type": "serial",
         "title": "Merlin",
-        "is_premium": False,  # Bepul serial
+        "is_premium": False,
         "episodes": {
             "1": "AAMCAgADGQEAAS92s2rEnmt3CRZDurj34JuXHSl99T0CAAKnogACovUhSjFsOIJjmAv8AQAHbQADPQQ",
             "2": "AAMCAgADGQEAAS92s2rEnmt3CRZDurj34JuXHSl99T0CAAKnogACovUhSjFsOIJjmAv8AQAHbQADPQQ"
@@ -43,7 +45,8 @@ MOVIES_DB = {
 }
 # ====================================================
 
-bot = Bot(token=BOT_TOKEN)
+# Default HTML yoki Markdown beramiz
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
 # Majburiy obunani tekshirish funksiyasi
@@ -51,7 +54,8 @@ async def check_sub(user_id: int) -> bool:
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
         return member.status in ["creator", "administrator", "member"]
-    except Exception:
+    except Exception as e:
+        logging.error(f"Obunani tekshirishda xatolik: {e}")
         return False
 
 # Obuna klaviaturasi
@@ -71,11 +75,11 @@ async def start_handler(message: types.Message):
     await message.answer(
         f"Assalomu alaykum, {message.from_user.full_name}!\n\n"
         f"Sizning kodingiz (ID): `{user_id}`\n"
-        f"Sizning maqomingiz: **{status}**\n\n"
-        "🎬 Kino ko'rish uchun **kino kodini** yuboring (masalan: 101, 102 yoki 664):"
+        f"Sizning maqomingiz: *{status}*\n\n"
+        "🎬 Kino ko'rish uchun *kino kodini* yuboring (masalan: 101, 102 yoki 664):"
     )
 
-# Admin uchun foydalanuvchini VIP qilish buyrug'i: /vip 123456789
+# Admin uchun VIP berish: /vip 123456789
 @dp.message(Command("vip"))
 async def make_vip(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -87,8 +91,11 @@ async def make_vip(message: types.Message):
         await message.answer(f"✅ `ID: {target_id}` foydalanuvchisiga VIP status berildi!")
         
         try:
-            await bot.send_message(target_id, "🎉 Sizga VIP status berildi! Endi barcha pulli kinolarni ko'rishingiz va majburiy obunasiz foydalanishingiz mumkin.")
-        except:
+            await bot.send_message(
+                target_id, 
+                "🎉 Sizga VIP status berildi! Endi barcha pulli kinolarni ko'rishingiz va majburiy obunasiz foydalanishingiz mumkin."
+            )
+        except Exception:
             pass
     except Exception:
         await message.answer("⚠️ Xato kiritdingiz! Buyruq shakli: `/vip 123456789`")
@@ -102,7 +109,7 @@ async def check_sub_callback(call: CallbackQuery):
     else:
         await call.answer("❌ Siz hali kanalimizga obuna bo'lmadingiz!", show_alert=True)
 
-# Kino kodini qabul qilish va tekshirish
+# Kino kodini qabul qilish
 @dp.message(F.text)
 async def get_movie(message: types.Message):
     user_id = message.from_user.id
@@ -118,14 +125,14 @@ async def get_movie(message: types.Message):
     # 1. PULLI KINO TEKSHIRUVI
     if movie.get("is_premium") and not is_vip:
         await message.answer(
-            f"🔒 **\"{movie['title']}\" kinosi faqat VIP obunachilar uchun!**\n\n"
+            f"🔒 *\"{movie['title']}\" kinosi faqat VIP obunachilar uchun!*\n\n"
             "VIP obuna sotib olish uchun adminga muloqotga chiqing.\n"
             f"Sizning ID kodingiz: `{user_id}`\n\n"
             "👨‍💻 Admin: @admin_username"
         )
         return
 
-    # 2. MAJBURIY OBUNA TEKSHIRUVI (VIP bo'lsa tekshirmaydi)
+    # 2. MAJBURIY OBUNA TEKSHIRUVI
     if not is_vip and not await check_sub(user_id):
         await message.answer(
             "⚠️ Kinoni ko'rish uchun avval rasmiy kanalimizga obuna bo'ling:",
@@ -137,7 +144,7 @@ async def get_movie(message: types.Message):
     if movie["type"] == "single":
         await message.answer_video(
             video=movie["file_id"],
-            caption=f"🎬 **{movie['title']}**\n\nMaroqli hordiq chiqaring!"
+            caption=f"🎬 *{movie['title']}*\n\nMaroqli hordiq chiqaring!"
         )
         
     elif movie["type"] == "serial":
@@ -150,7 +157,7 @@ async def get_movie(message: types.Message):
         
         kb = InlineKeyboardMarkup(inline_keyboard=buttons)
         await message.answer(
-            f"📺 **{movie['title']}** seriali.\nKo'rmoqchi bo'lgan qismingizni tanlang:",
+            f"📺 *{movie['title']}* seriali.\nKo'rmoqchi bo'lgan qismingizni tanlang:",
             reply_markup=kb
         )
 
@@ -166,7 +173,7 @@ async def send_episode(call: CallbackQuery):
         await call.answer(f"{ep_num}-qism yuklanmoqda...")
         await call.message.answer_video(
             video=file_id,
-            caption=f"🎬 **{title}** — {ep_num}-qism"
+            caption=f"🎬 *{title}* — {ep_num}-qism"
         )
 
 async def main():
