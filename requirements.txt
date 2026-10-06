@@ -1,3 +1,2 @@
-setuptools
-wheel
 aiogram==3.15.0
+pydantic>=2.0.0
