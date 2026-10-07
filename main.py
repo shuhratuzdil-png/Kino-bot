@@ -26,13 +26,14 @@ from aiogram.webhook.aiohttp_server import (
 # 1. ASOSIY SOZLAMALAR
 # ============================================================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("
+8770001356:AAGq5P-ZfhYssSKGI87h5XDeWrDLTWfnkEE")
 
 ADMIN_ID = 8286159397
 
 # Admin Telegram username.
 # @ belgisini qo'ymasdan yozing.
-ADMIN_USERNAME = "YOUR_ADMIN_USERNAME"
+ADMIN_USERNAME = "RapKino"
 
 # Majburiy obuna kanallari
 CHANNELS = [
