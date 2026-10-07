@@ -10,11 +10,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
-# ==================== 1. НАСТРОЙКИ БОТА ====================
-BOT_TOKEN = "8770001356:AAFzObBGaC_gHoEVY0AA1wUYR0Xtv6TrosM"
-ADMIN_ID = 8286159397  # Ваш Telegram ID
+# ==================== 1. BOT SOZLAMALARI ====================
+# BOT_TOKEN ga BotFather'dan olingan YANGI tokenni yozing:
+BOT_TOKEN = "8770001356:AAGq5P-ZfhYssSKGI87h5XDeWrDLTWfnkEE"
+ADMIN_ID = 8286159397  # Sizning Telegram ID-ingiz
 
-# ВАШИ КАНАЛЫ ДЛЯ ОБЯЗАТЕЛЬНОЙ ПОДПИСКИ
 CHANNELS = [
     "@ochiqkanalim",
     "@dddduzd"
@@ -23,7 +23,7 @@ CHANNELS = [
 VIP_USERS = set()
 JSON_FILE = "movies.json"
 
-# ==================== 2. РАБОТА С БАЗОЙ ДАННЫХ (JSON) ====================
+# ==================== 2. MA'LUMOTLAR BAZASI ====================
 def load_movies():
     if not os.path.exists(JSON_FILE):
         with open(JSON_FILE, "w", encoding="utf-8") as f:
@@ -46,7 +46,7 @@ class AddMovieState(StatesGroup):
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# ==================== 3. ПРОВЕРКА ПОДПИСКИ ====================
+# ==================== 3. YORDAMCHI FUNKSIYALAR ====================
 async def check_all_subs(user_id: int) -> bool:
     for channel in CHANNELS:
         try:
@@ -54,7 +54,7 @@ async def check_all_subs(user_id: int) -> bool:
             if member.status not in ["creator", "administrator", "member"]:
                 return False
         except Exception as e:
-            logging.error(f"Ошибка проверки подписки ({channel}): {e}")
+            logging.error(f"Kanalni tekshirishda xatolik ({channel}): {e}")
             return False
     return True
 
@@ -70,9 +70,8 @@ def get_sub_keyboard():
     ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# ==================== 4. АДМИН-КОМАНДЫ (ДОБАВЛЕНИЕ ФИЛЬМОВ) ====================
+# ==================== 4. ADMIN BUYRUQLARI ====================
 
-# Начать добавление: /add
 @dp.message(Command("add"))
 async def start_add_movie(message: types.Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
@@ -80,31 +79,29 @@ async def start_add_movie(message: types.Message, state: FSMContext):
     
     await message.answer(
         "🎬 *Yangi kino qo'shish rejimi*\n\n"
-        "Quyidagi formatda yuboring:\n"
-        "`kod | Kino nomi | premium` (yoki `free`)\n\n"
-        "*Misol:* `105 | Forsaj 10 | free`"
+        "Iltimos, kino kodi, nomi va turini quyidagi formatda yuboring:\n"
+        "`kod | Kino nomi | free` (yoki `premium`)\n\n"
+        "*Masalan:* `105 | Forsaj 10 | free`"
     )
     await state.set_state(AddMovieState.waiting_for_details)
 
-# Прием текстовых данных
 @dp.message(AddMovieState.waiting_for_details)
 async def process_movie_details(message: types.Message, state: FSMContext):
     try:
         parts = [p.strip() for p in message.text.split("|")]
         if len(parts) < 3:
-            await message.answer("⚠️ Format noto'g'ri! Masalan: `105 | Forsaj 10 | free`:")
+            await message.answer("⚠️ Format noto'g'ri! Qaytadan kiriting (Masalan: `105 | Forsaj 10 | free`):")
             return
 
         code, title, is_premium_str = parts[0], parts[1], parts[2].lower()
         is_premium = True if is_premium_str in ["premium", "vip", "true"] else False
 
         await state.update_data(code=code, title=title, is_premium=is_premium)
-        await message.answer(f"✅ Ma'lumot qabul qilindi:\n📌 Kod: `{code}`\n🎬 Nomi: *{title}*\n\n**Endi kinoni (video faylini) yuboring:**")
+        await message.answer(f"✅ Ma'lumot qabul qilindi:\n\n📌 Kod: `{code}`\n🎬 Nomi: *{title}*\n⭐ VIP: *{is_premium}*\n\n**Endi kinoning video faylini botga yuboring:**")
         await state.set_state(AddMovieState.waiting_for_video)
     except Exception as e:
-        await message.answer(f"⚠️ Xatolik: {e}")
+        await message.answer(f"⚠️ Xatolik yuz berdi: {e}")
 
-# Прием видео
 @dp.message(AddMovieState.waiting_for_video, F.video)
 async def process_movie_video(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -119,10 +116,9 @@ async def process_movie_video(message: types.Message, state: FSMContext):
     }
     save_movies(movies)
 
-    await message.answer(f"🎉 *\"{data['title']}\"* saqlandi!\n🔑 Kod: `{data['code']}`")
+    await message.answer(f"🎉 *\"{data['title']}\"* kinosi muvaffaqiyatli saqlandi!\n🔑 Kodi: `{data['code']}`")
     await state.clear()
 
-# Список фильмов: /list
 @dp.message(Command("list"))
 async def list_movies(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -130,17 +126,16 @@ async def list_movies(message: types.Message):
     
     movies = load_movies()
     if not movies:
-        await message.answer("📭 Bazada kino yo'q.")
+        await message.answer("📭 Bazada hali hech qanday kino yo'q.")
         return
 
-    text = "📋 *Kinolar ro'yxati:*\n\n"
+    text = "📋 *Bazardagi kinolar ro'yxati:*\n\n"
     for code, m in movies.items():
         vip_tag = "⭐ VIP" if m.get("is_premium") else "🆓 Bepul"
         text += f"• `{code}` - *{m['title']}* ({vip_tag})\n"
 
     await message.answer(text)
 
-# Удаление фильма: /del 105
 @dp.message(Command("del"))
 async def delete_movie(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -152,13 +147,12 @@ async def delete_movie(message: types.Message):
         if code in movies:
             del movies[code]
             save_movies(movies)
-            await message.answer(f"🗑 `{code}` kodli kino o'chirildi.")
+            await message.answer(f"🗑 `{code}` kodli kino bazadan o'chirildi.")
         else:
-            await message.answer("❌ Topilmadi.")
+            await message.answer("❌ Bunday kodli kino topilmadi.")
     except Exception:
-        await message.answer("⚠️ Format: `/del 105`")
+        await message.answer("⚠️ Ishlatish usuli: `/del 105`")
 
-# Выдача VIP: /vip ID
 @dp.message(Command("vip"))
 async def make_vip(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -166,11 +160,11 @@ async def make_vip(message: types.Message):
     try:
         target_id = int(message.text.split()[1])
         VIP_USERS.add(target_id)
-        await message.answer(f"✅ `ID: {target_id}` foydalanuvchisiga VIP berildi!")
+        await message.answer(f"✅ `ID: {target_id}` foydalanuvchisiga VIP status berildi!")
     except Exception:
-        await message.answer("⚠️ Format: `/vip 8286159397`")
+        await message.answer("⚠️ Ishlatish usuli: `/vip 8286159397`")
 
-# ==================== 5. ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ====================
+# ==================== 5. FOYDALANUVCHILAR UCHUN ====================
 
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
@@ -188,7 +182,7 @@ async def start_handler(message: types.Message):
 async def check_sub_callback(call: CallbackQuery):
     if await check_all_subs(call.from_user.id):
         await call.message.delete()
-        await call.message.answer("✅ Obunangiz tasdiqlandi! Endi kino kodini yuborishingiz mumkin.")
+        await call.message.answer("✅ Barcha kanallarga obunangiz tasdiqlandi! Endi kino kodini yuborishingiz mumkin.")
     else:
         await call.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
 
@@ -197,15 +191,6 @@ async def get_movie(message: types.Message):
     user_id = message.from_user.id
     code = message.text.strip()
 
-    # Проверка обязательной подписки (если пользователь не VIP)
-    if user_id != ADMIN_ID and user_id not in VIP_USERS:
-        if not await check_all_subs(user_id):
-            await message.answer(
-                "⚠️ Kinoni ko'rish uchun avval ushbu kanallarga obuna bo'ling:",
-                reply_markup=get_sub_keyboard()
-            )
-            return
-
     movies = load_movies()
 
     if code not in movies:
@@ -213,12 +198,20 @@ async def get_movie(message: types.Message):
         return
 
     movie = movies[code]
-    is_vip = user_id in VIP_USERS or user_id == ADMIN_ID
+    is_vip = user_id in VIP_USERS
 
     if movie.get("is_premium") and not is_vip:
         await message.answer(
             f"🔒 *\"{movie['title']}\" kinosi faqat VIP obunachilar uchun!*\n\n"
-            f"Sizning ID kodingiz: `{user_id}`"
+            f"Sizning ID kodingiz: `{user_id}`\n\n"
+            "VIP obuna sotib olish uchun adminga murojaat qiling."
+        )
+        return
+
+    if not is_vip and not await check_all_subs(user_id):
+        await message.answer(
+            "⚠️ Kinoni ko'rish uchun avval ushbu kanallarga obuna bo'ling:",
+            reply_markup=get_sub_keyboard()
         )
         return
 
