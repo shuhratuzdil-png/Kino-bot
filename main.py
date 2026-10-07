@@ -11,8 +11,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 # ==================== 1. BOT SOZLAMALARI ====================
-# BOT_TOKEN ga BotFather'dan olingan YANGI tokenni yozing:
-BOT_TOKEN = "8770001356:AAGq5P-ZfhYssSKGI87h5XDeWrDLTWfnkEE"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8770001356:AAGq5P-ZfhYssSKGI87h5XDeWrDLTwfnkEE")
 ADMIN_ID = 8286159397  # Sizning Telegram ID-ingiz
 
 CHANNELS = [
@@ -51,7 +50,7 @@ async def check_all_subs(user_id: int) -> bool:
     for channel in CHANNELS:
         try:
             member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
-            if member.status not in ["creator", "administrator", "member"]:
+            if member.status in ["left", "kicked"]:
                 return False
         except Exception as e:
             logging.error(f"Kanalni tekshirishda xatolik ({channel}): {e}")
@@ -169,7 +168,17 @@ async def make_vip(message: types.Message):
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
     user_id = message.from_user.id
-    status = "⭐ VIP Obunachi" if user_id in VIP_USERS else "👤 Oddiy foydalanuvchi"
+    
+    # Obuna tekshiruvi
+    if not await check_all_subs(user_id):
+        await message.answer(
+            "👋 Assalomu alaykum!\n\n"
+            "Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling va **'Obunani tekshirish'** tugmasini bosing:",
+            reply_markup=get_sub_keyboard()
+        )
+        return
+
+    status = "⭐ VIP Obunachi" if user_id in VIP_USERS else ("👨‍💻 Admin" if user_id == ADMIN_ID else "👤 Oddiy foydalanuvchi")
     
     await message.answer(
         f"Assalomu alaykum, *{message.from_user.full_name}*!\n\n"
@@ -182,7 +191,7 @@ async def start_handler(message: types.Message):
 async def check_sub_callback(call: CallbackQuery):
     if await check_all_subs(call.from_user.id):
         await call.message.delete()
-        await call.message.answer("✅ Barcha kanallarga obunangiz tasdiqlandi! Endi kino kodini yuborishingiz mumkin.")
+        await call.message.answer("✅ Barcha kanallarga obunangiz tasdiqlandi!\n\n🎬 Endi kino kodini yuborishingiz mumkin.")
     else:
         await call.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
 
@@ -191,6 +200,14 @@ async def get_movie(message: types.Message):
     user_id = message.from_user.id
     code = message.text.strip()
 
+    # Avval obunani tekshiramiz
+    if not await check_all_subs(user_id):
+        await message.answer(
+            "⚠️ Kinoni ko'rish uchun avval ushbu kanallarga obuna bo'ling:",
+            reply_markup=get_sub_keyboard()
+        )
+        return
+
     movies = load_movies()
 
     if code not in movies:
@@ -198,20 +215,13 @@ async def get_movie(message: types.Message):
         return
 
     movie = movies[code]
-    is_vip = user_id in VIP_USERS
+    is_vip = (user_id in VIP_USERS) or (user_id == ADMIN_ID)
 
     if movie.get("is_premium") and not is_vip:
         await message.answer(
             f"🔒 *\"{movie['title']}\" kinosi faqat VIP obunachilar uchun!*\n\n"
             f"Sizning ID kodingiz: `{user_id}`\n\n"
             "VIP obuna sotib olish uchun adminga murojaat qiling."
-        )
-        return
-
-    if not is_vip and not await check_all_subs(user_id):
-        await message.answer(
-            "⚠️ Kinoni ko'rish uchun avval ushbu kanallarga obuna bo'ling:",
-            reply_markup=get_sub_keyboard()
         )
         return
 
